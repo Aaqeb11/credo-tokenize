@@ -18,14 +18,6 @@ const Header = () => {
           </Link>
         </nav>
 
-        <Show when="signed-out">
-          <SignInButton mode="modal">
-            <button className="bg-black text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors duration-200 cursor-pointer">
-              Sign In
-            </button>
-          </SignInButton>
-        </Show>
-
         <Show when="signed-in">
           <UserButton />
         </Show>

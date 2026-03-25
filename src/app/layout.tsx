@@ -32,9 +32,13 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider>
+      <Header />
       <html lang="en">
-        <Header />
-        <body>{children}</body>
+        <body
+          className={`${geistSans.variable} ${geistMono.variable} overflow-hidden`}
+        >
+          {children}
+        </body>
       </html>
     </ClerkProvider>
   );
