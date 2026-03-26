@@ -43,13 +43,7 @@ export default function FetchUser() {
       const res = await fetch(`/api/users?accountNumber=${cleanAccount}`);
       const data = await res.json();
 
-      if (res.status === 404) {
-        toast.error("User not found");
-        setResult(null);
-        return;
-      }
-
-      if (!res.ok) {
+      if (!res.ok || !data) {
         toast.error("User not found");
         setResult(null);
         return;
