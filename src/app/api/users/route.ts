@@ -4,71 +4,98 @@ import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { createUserSchema } from "@/db/schema";
 
-// GET: Fetch by accountNumber (your current flow)
+const CTVL_URL = process.env.CTVL_URL;
+const CTVL_USER = process.env.CTVL_USERNAME;
+const CTVL_PASS = process.env.CTVL_PASSWORD;
+const TOKEN_GROUP = process.env.CTVL_TOKEN_GROUP;
+const TOKEN_TEMPLATE = process.env.CTVL_TOKEN_TEMPLATE;
+
+const tokenizeCard = async (cardNumber: string) => {
+  const res = await fetch(`${CTVL_URL}/tokenize`, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${btoa(`${CTVL_USER}:${CTVL_PASS}`)}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      tokengroup: TOKEN_GROUP,
+      data: cardNumber,
+      tokentemplate: TOKEN_TEMPLATE,
+    }),
+  });
+
+  const data = await res.json();
+  if (data.status !== "Succeed")
+    throw new Error(data.reason || "Tokenization failed");
+  return data.token;
+};
+
+// Detokenize function
+const detokenizeCard = async (token: string) => {
+  const res = await fetch(`${CTVL_URL}/detokenize`, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${btoa(`${CTVL_USER}:${CTVL_PASS}`)}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      tokengroup: TOKEN_GROUP,
+      token,
+      tokentemplate: TOKEN_TEMPLATE,
+    }),
+  });
+
+  const data = await res.json();
+  if (data.status !== "Succeed")
+    throw new Error(data.reason || "Detokenization failed");
+  return data.data;
+};
+
+// GET: Fetch by accountNumber
 export async function GET(req: NextRequest) {
+  const accountNumber = req.nextUrl.searchParams.get("accountNumber");
+
+  const user = await db
+    .select()
+    .from(users)
+    .where(eq(users.accountNumber, accountNumber!))
+    .limit(1);
+
+  if (!user[0]) return NextResponse.json(null);
+
   try {
-    const searchParams = req.nextUrl.searchParams;
-    const accountNumber = searchParams.get("accountNumber");
+    const rawCard = await detokenizeCard(user[0].cardNumber); // Detokenize!
 
-    if (!accountNumber || accountNumber.length !== 3) {
-      return NextResponse.json(
-        { error: "Valid 3-digit account number required" },
-        { status: 400 },
-      );
-    }
-
-    const user = await db
-      .select()
-      .from(users)
-      .where(eq(users.accountNumber, accountNumber))
-      .limit(1);
-
-    return NextResponse.json(user[0] || null);
-  } catch (error) {
-    return NextResponse.json({ error: "Database error" }, { status: 500 });
+    return NextResponse.json({
+      ...user[0],
+      cardNumber: rawCard, // Return original card
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: "Detokenization failed" },
+      { status: 400 },
+    );
   }
 }
 
-// POST: Create new user (generates accountNumber)
+// POST: Create new user
 export async function POST(req: NextRequest) {
+  const body = await req.json();
+  const validated = createUserSchema.parse(body);
+
   try {
-    const body = await req.json();
-    const validated = createUserSchema.safeParse(body);
+    const token = await tokenizeCard(validated.cardNumber); // Tokenize!
 
-    if (!validated.success) {
-      return NextResponse.json(
-        { error: "Invalid data", details: validated.error.message },
-        { status: 400 },
-      );
-    }
-
-    // Insert → DB auto-generates accountNumber!
     const [newUser] = await db
       .insert(users)
       .values({
-        ...validated.data,
+        ...validated,
+        cardNumber: token,
       })
       .returning();
 
-    return NextResponse.json(
-      {
-        message: "User created successfully",
-        user: newUser,
-      },
-      { status: 201 },
-    );
+    return NextResponse.json({ user: newUser }, { status: 201 });
   } catch (error: any) {
-    if (error.code === "23505") {
-      // Postgres unique violation
-      return NextResponse.json(
-        { error: "Account number collision (rare). Try again." },
-        { status: 409 },
-      );
-    }
-
-    return NextResponse.json(
-      { error: "Failed to create user" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: error.message }, { status: 400 });
   }
 }
