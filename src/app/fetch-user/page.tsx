@@ -3,17 +3,17 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 
 export default function FetchUser() {
-  const [accountNumber, setAccountNumber] = useState(""); // Changed to accountNumber
+  const [accountNumber, setAccountNumber] = useState("");
   const [result, setResult] = useState<null | {
     fullName: string;
-    address: string;
-    accountNumber: string; // Updated to match
-    cardNumber?: string; // Optional if still needed
+    address: string | null;
+    accountNumber: string;
+    cardNumber: string;
     bankName: string;
   }>(null);
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const formatAccountNumber = (value: string) => {
@@ -21,31 +21,38 @@ export default function FetchUser() {
     return digits;
   };
 
+  const validateAccount = (value: string): string | null => {
+    const clean = value.replace(/\s/g, "");
+    if (clean.length !== 3 || !/^\d{3}$/.test(clean)) {
+      return "Enter exactly 3 digits (000-999)";
+    }
+    return null;
+  };
+
   const handleSearch = async () => {
-    const cleanAccount = accountNumber.replace(/\s/g, "");
-    if (cleanAccount.length !== 3) {
-      // Flexible validation
-      setError("Please enter a valid account number (min 10 digits).");
+    const error = validateAccount(accountNumber);
+    if (error) {
+      toast.error(error);
       return;
     }
-    setError("");
+
+    const cleanAccount = accountNumber.replace(/\s/g, "");
     setLoading(true);
 
     try {
-      // Replace with your actual API call
-      // const res = await fetch(`/api/user?accountNumber=${cleanAccount}`);
-      // const data = await res.json();
-      // setResult(data);
+      const res = await fetch(`/api/users?accountNumber=${cleanAccount}`);
+      const data = await res.json();
 
-      // Mock result for now:
-      setResult({
-        fullName: "John Doe",
-        address: "123 Main Street, Riyadh, Saudi Arabia",
-        accountNumber: accountNumber,
-        bankName: "Al Rajhi Bank",
-      });
+      if (!res.ok || !data) {
+        toast.error("User not found");
+        setResult(null);
+        return;
+      }
+
+      setResult(data);
+      toast.success("User found!");
     } catch (err) {
-      setError("User not found. Please check the account number.");
+      toast.error("Search failed");
       setResult(null);
     } finally {
       setLoading(false);
@@ -61,7 +68,6 @@ export default function FetchUser() {
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-6 flex flex-col gap-5">
-          {/* Search Section */}
           <div>
             <p className="text-xs font-bold tracking-widest text-gray-500 uppercase mb-3">
               Account Details
@@ -75,7 +81,7 @@ export default function FetchUser() {
                   setAccountNumber(formatAccountNumber(e.target.value))
                 }
                 maxLength={3}
-                className="rounded-lg border-gray-300 h-12 tracking-widest font-mono"
+                className="rounded-lg border-gray-300 h-12 tracking-widest font-mono flex-1"
               />
               <Button
                 onClick={handleSearch}
@@ -85,10 +91,8 @@ export default function FetchUser() {
                 {loading ? "Searching..." : "Fetch"}
               </Button>
             </div>
-            {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
           </div>
 
-          {/* Result Section */}
           {result && (
             <div className="flex flex-col gap-3 pt-2">
               <p className="text-xs font-bold tracking-widest text-gray-500 uppercase mb-1">
@@ -97,11 +101,9 @@ export default function FetchUser() {
               <hr className="border-gray-200" />
               {[
                 { label: "Full Name", value: result.fullName },
-                { label: "Address", value: result.address },
-                { label: "Account Number", value: result.accountNumber }, // Updated label
-                ...(result.cardNumber
-                  ? [{ label: "Card Number", value: result.cardNumber }]
-                  : []),
+                { label: "Address", value: result.address || "No address" },
+                { label: "Account Number", value: result.accountNumber },
+                { label: "Card Number", value: result.cardNumber },
                 { label: "Bank Name", value: result.bankName },
               ].map(({ label, value }) => (
                 <div
@@ -111,7 +113,9 @@ export default function FetchUser() {
                   <span className="text-xs text-gray-400 font-medium uppercase tracking-wide">
                     {label}
                   </span>
-                  <span className="text-gray-800 font-medium">{value}</span>
+                  <span className="text-gray-800 font-medium font-mono text-sm">
+                    {value}
+                  </span>
                 </div>
               ))}
             </div>
