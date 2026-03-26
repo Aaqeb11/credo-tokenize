@@ -53,28 +53,35 @@ const detokenizeCard = async (token: string) => {
 
 // GET: Fetch by accountNumber
 export async function GET(req: NextRequest) {
-  const accountNumber = req.nextUrl.searchParams.get("accountNumber");
-
-  const user = await db
-    .select()
-    .from(users)
-    .where(eq(users.accountNumber, accountNumber!))
-    .limit(1);
-
-  if (!user[0]) return NextResponse.json(null);
-
   try {
-    const rawCard = await detokenizeCard(user[0].cardNumber); // Detokenize!
+    const accountNumber = req.nextUrl.searchParams.get("accountNumber");
+
+    if (!accountNumber || accountNumber.length !== 3) {
+      return NextResponse.json(
+        { error: "Valid 3-digit account number required" },
+        { status: 400 },
+      );
+    }
+
+    const user = await db
+      .select()
+      .from(users)
+      .where(eq(users.accountNumber, accountNumber))
+      .limit(1);
+
+    if (!user[0]) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Detokenize card...
+    const rawCard = await detokenizeCard(user[0].cardNumber);
 
     return NextResponse.json({
       ...user[0],
-      cardNumber: rawCard, // Return original card
+      cardNumber: rawCard,
     });
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: "Detokenization failed" },
-      { status: 400 },
-    );
+  } catch (error) {
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 
