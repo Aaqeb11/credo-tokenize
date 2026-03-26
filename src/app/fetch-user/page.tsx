@@ -17,13 +17,13 @@ export default function FetchUser() {
   const [loading, setLoading] = useState(false);
 
   const formatAccountNumber = (value: string) => {
-    const digits = value.replace(/\D/g, "").slice(0, 12); // Typical 12-digit account
-    return digits.replace(/(.{4})/g, "$1 ").trim();
+    const digits = value.replace(/\D/g, "").slice(0, 3);
+    return digits;
   };
 
   const handleSearch = async () => {
     const cleanAccount = accountNumber.replace(/\s/g, "");
-    if (cleanAccount.length < 10) {
+    if (cleanAccount.length !== 3) {
       // Flexible validation
       setError("Please enter a valid account number (min 10 digits).");
       return;
@@ -69,12 +69,12 @@ export default function FetchUser() {
             <hr className="mb-5 border-gray-200" />
             <div className="flex gap-3">
               <Input
-                placeholder="0000 0000 0000" // Updated placeholder
+                placeholder="000"
                 value={accountNumber}
                 onChange={(e) =>
                   setAccountNumber(formatAccountNumber(e.target.value))
                 }
-                maxLength={16} // Adjusted for account numbers
+                maxLength={3}
                 className="rounded-lg border-gray-300 h-12 tracking-widest font-mono"
               />
               <Button
