@@ -80,6 +80,7 @@ export default function AddUser() {
       });
 
       const data = await res.json();
+      console.log("API Response:", res.status, data);
 
       if (!res.ok) {
         toast.error(data.error || "Something went wrong");

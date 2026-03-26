@@ -80,11 +80,14 @@ export async function GET(req: NextRequest) {
 
 // POST: Create new user
 export async function POST(req: NextRequest) {
+  console.log("POST /api/users - body received");
   const body = await req.json();
+  console.log("Parsed body:", body);
   const validated = createUserSchema.parse(body);
+  console.log("Validation:", validated);
 
   try {
-    const token = await tokenizeCard(validated.cardNumber); // Tokenize!
+    const token = await tokenizeCard(validated.cardNumber);
 
     const [newUser] = await db
       .insert(users)
