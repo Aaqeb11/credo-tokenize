@@ -8,6 +8,7 @@ export const users = pgTable("users", {
     .notNull()
     .unique()
     .default(generateAccountNumber()),
+  cardNumber: varchar("card_number", { length: 16 }).notNull().unique(),
   fullName: varchar("full_name", { length: 100 }).notNull(),
   address: text("address"),
   bankName: varchar("bank_name", { length: 50 }),

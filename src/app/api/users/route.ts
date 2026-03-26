@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         message: "User created successfully",
-        user: newUser, // Includes generated accountNumber: "047"
+        user: newUser,
       },
       { status: 201 },
     );

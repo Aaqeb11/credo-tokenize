@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 
 export default function AddUser() {
   const [form, setForm] = useState({
@@ -12,6 +13,8 @@ export default function AddUser() {
     cardNumber: "",
     bankName: "",
   });
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<null | any>(null);
 
   const formatCardNumber = (value: string) => {
     const digits = value.replace(/\D/g, "").slice(0, 16);
@@ -23,15 +26,77 @@ export default function AddUser() {
     setForm({ ...form, cardNumber: formatted });
   };
 
+  const validateForm = (): string | null => {
+    if (!form.fullName.trim()) return "Full name is required";
+    if (form.fullName.trim().length < 2)
+      return "Full name must be at least 2 characters";
+    if (form.fullName.trim().length > 100)
+      return "Full name too long (max 100 chars)";
+
+    if (!form.bankName.trim()) return "Bank name is required";
+    if (form.bankName.trim().length < 2)
+      return "Bank name must be at least 2 characters";
+    if (form.bankName.trim().length > 50)
+      return "Bank name too long (max 50 chars)";
+
+    const cleanCard = form.cardNumber.replace(/\s/g, "");
+    if (cleanCard.length !== 16 || !/^\d{16}$/.test(cleanCard)) {
+      return "Card must be exactly 16 digits";
+    }
+
+    if (form.address.trim().length > 500) {
+      return "Address too long (max 500 chars)";
+    }
+
+    return null;
+  };
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = () => {
-    console.log("Submitted:", form);
-    // your API call here
+  const handleSubmit = async () => {
+    const error = validateForm();
+    if (error) {
+      toast.error(error);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const cleanCard = form.cardNumber.replace(/\s/g, "");
+
+      const res = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: form.fullName.trim(),
+          address: form.address.trim() || null,
+          cardNumber: cleanCard,
+          bankName: form.bankName.trim(),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.error || "Something went wrong");
+        return;
+      }
+
+      setResult(data.user);
+      toast.success("User Created!", {
+        description: `Account: ${data.user.accountNumber}`,
+      });
+
+      setForm({ fullName: "", address: "", cardNumber: "", bankName: "" });
+    } catch (error) {
+      toast.error("Network Error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -83,10 +148,29 @@ export default function AddUser() {
 
           <Button
             onClick={handleSubmit}
+            disabled={loading}
             className="w-full h-12 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-lg mt-2"
           >
-            Add
+            {loading ? "Creating..." : "Add User"}
           </Button>
+
+          {result && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <p className="text-sm font-bold text-green-800 mb-2">
+                ✅ User Created Successfully
+              </p>
+              <div className="text-xs space-y-1 text-green-700">
+                <div>
+                  <span className="font-mono bg-green-100 px-2 py-1 rounded">
+                    Account:
+                  </span>{" "}
+                  {result.accountNumber}
+                </div>
+                <div>Name: {result.fullName}</div>
+                <div>Bank: {result.bankName}</div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
