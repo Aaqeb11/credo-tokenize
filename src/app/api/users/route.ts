@@ -6,17 +6,32 @@ import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { createUserSchema } from "@/db/schema";
 import { generateAccountNumber } from "@/lib/utils";
+import { currentUser } from "@clerk/nextjs/server";
 
 const CTVL_URL = process.env.CTVL_URL;
-const CTVL_USER = process.env.CTVL_USERNAME;
-const CTVL_PASS = process.env.CTVL_PASSWORD;
 const TOKEN_GROUP = process.env.CTVL_TOKEN_GROUP;
 const TOKEN_TEMPLATE = process.env.CTVL_TOKEN_TEMPLATE;
 
+const getCtvlCredentials = async () => {
+  const user = await currentUser();
+
+  if (!user) throw new Error("Unauthorized");
+
+  const { ctvl_user, ctvl_pass } = user.privateMetadata as {
+    ctvl_user: string;
+    ctvl_pass: string;
+  };
+
+  if (!ctvl_user || !ctvl_pass)
+    throw new Error("CTVL credentials not found in user metadata");
+
+  return { ctvlUser: ctvl_user, ctvlPass: ctvl_pass };
+};
+
 const tokenizeCard = async (cardNumber: string) => {
-  const credentials = Buffer.from(`${CTVL_USER}:${CTVL_PASS}`).toString(
-    "base64",
-  );
+  const { ctvlUser, ctvlPass } = await getCtvlCredentials();
+
+  const credentials = Buffer.from(`${ctvlUser}:${ctvlPass}`).toString("base64");
 
   const res = await fetch(`${CTVL_URL}/tokenize`, {
     method: "POST",
@@ -37,11 +52,10 @@ const tokenizeCard = async (cardNumber: string) => {
   return data.token;
 };
 
-// Detokenize function
 const detokenizeCard = async (token: string) => {
-  const credentials = Buffer.from(`${CTVL_USER}:${CTVL_PASS}`).toString(
-    "base64",
-  );
+  const { ctvlUser, ctvlPass } = await getCtvlCredentials();
+
+  const credentials = Buffer.from(`${ctvlUser}:${ctvlPass}`).toString("base64");
 
   const res = await fetch(`${CTVL_URL}/detokenize`, {
     method: "POST",
