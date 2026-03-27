@@ -1,8 +1,11 @@
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { createUserSchema } from "@/db/schema";
+import { generateAccountNumber } from "@/lib/utils";
 
 const CTVL_URL = process.env.CTVL_URL;
 const CTVL_USER = process.env.CTVL_USERNAME;
@@ -11,10 +14,14 @@ const TOKEN_GROUP = process.env.CTVL_TOKEN_GROUP;
 const TOKEN_TEMPLATE = process.env.CTVL_TOKEN_TEMPLATE;
 
 const tokenizeCard = async (cardNumber: string) => {
+  const credentials = Buffer.from(`${CTVL_USER}:${CTVL_PASS}`).toString(
+    "base64",
+  );
+
   const res = await fetch(`${CTVL_URL}/tokenize`, {
     method: "POST",
     headers: {
-      Authorization: `Basic ${btoa(`${CTVL_USER}:${CTVL_PASS}`)}`,
+      Authorization: `Basic ${credentials}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -24,7 +31,7 @@ const tokenizeCard = async (cardNumber: string) => {
     }),
   });
 
-  const data = await res.json();
+  const data = JSON.parse(await res.text());
   if (data.status !== "Succeed")
     throw new Error(data.reason || "Tokenization failed");
   return data.token;
@@ -32,10 +39,14 @@ const tokenizeCard = async (cardNumber: string) => {
 
 // Detokenize function
 const detokenizeCard = async (token: string) => {
+  const credentials = Buffer.from(`${CTVL_USER}:${CTVL_PASS}`).toString(
+    "base64",
+  );
+
   const res = await fetch(`${CTVL_URL}/detokenize`, {
     method: "POST",
     headers: {
-      Authorization: `Basic ${btoa(`${CTVL_USER}:${CTVL_PASS}`)}`,
+      Authorization: `Basic ${credentials}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -45,7 +56,7 @@ const detokenizeCard = async (token: string) => {
     }),
   });
 
-  const data = await res.json();
+  const data = JSON.parse(await res.text());
   if (data.status !== "Succeed")
     throw new Error(data.reason || "Detokenization failed");
   return data.data;
@@ -68,7 +79,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       ...user[0],
-      cardNumber: rawCard, // Return original card
+      cardNumber: rawCard,
     });
   } catch (error: any) {
     return NextResponse.json(
@@ -88,17 +99,20 @@ export async function POST(req: NextRequest) {
 
   try {
     const token = await tokenizeCard(validated.cardNumber);
+    console.log("✅ Token received:", token);
 
     const [newUser] = await db
       .insert(users)
       .values({
         ...validated,
         cardNumber: token,
+        accountNumber: generateAccountNumber(),
       })
       .returning();
 
     return NextResponse.json({ user: newUser }, { status: 201 });
   } catch (error: any) {
+    console.error("❌ POST error:", error.message);
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 }
