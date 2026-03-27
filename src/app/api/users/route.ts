@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
   if (!user[0]) return NextResponse.json(null);
 
   try {
-    const rawCard = await detokenizeCard(user[0].cardNumber); // Detokenize!
+    const rawCard = await detokenizeCard(user[0].cardNumber);
 
     return NextResponse.json({
       ...user[0],
