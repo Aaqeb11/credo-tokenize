@@ -3,10 +3,10 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-const CTVL_URL = process.env.CTVL_URL!;
+const CTVL_URL_IP = process.env.CTVL_URL_IP!;
 
 export const loginAction = async (username: string, password: string) => {
-  const res = await fetch(`${CTVL_URL}/api/api-token-auth/`, {
+  const res = await fetch(`${CTVL_URL_IP}/api/api-token-auth/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password }),
@@ -37,7 +37,7 @@ export const logoutAction = async () => {
   const token = cookieStore.get("ctvl_token")?.value;
 
   if (token) {
-    await fetch(`${CTVL_URL}/logout/`, {
+    await fetch(`${CTVL_URL_IP}/logout/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
