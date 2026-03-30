@@ -95,16 +95,11 @@ export async function POST(req: NextRequest) {
   const token = await getToken();
   if (!token)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  console.log("POST /api/users - body received");
   const body = await req.json();
-  console.log("Parsed body:", body);
   const validated = createUserSchema.parse(body);
-  console.log("Validation:", validated);
 
   try {
     const cardToken = await tokenizeCard(validated.cardNumber);
-    console.log("✅ Token received:", cardToken);
 
     const [newUser] = await db
       .insert(users)
@@ -124,6 +119,10 @@ export async function POST(req: NextRequest) {
     // Postgres unique constraint violation
     if (error.code === "23505") {
       if (error.constraint_name === "users_card_number_unique") {
+        console.log("[POST] Error code:", error.code);
+        console.log("[POST] Error constraint:", error.constraint_name);
+        // sometimes it's error.constraint instead of error.constraint_name
+        console.log("[POST] Error constraint (alt):", error.constraint);
         return NextResponse.json(
           { error: "This card number is already registered" },
           { status: 409 },
