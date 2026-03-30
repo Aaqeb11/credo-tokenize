@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 
-const CTVL_URL = process.env.CTVL_URL!;
+const CTVL_URL_IP = process.env.CTVL_URL_IP!;
 
 interface CTVL_USER {
   username: string;
@@ -15,10 +15,10 @@ interface CTVL_AUTH {
 
 export const login = async (username: string, password: string) => {
   console.log("[auth] Attempting login for:", username);
-  console.log("[auth] CTVL_URL:", CTVL_URL);
+  console.log("[auth] CTVL_URL:", CTVL_URL_IP);
   console.log("[auth] NODE_ENV:", process.env.NODE_ENV);
 
-  const response = await fetch(`${CTVL_URL}/api/api-token-auth/`, {
+  const response = await fetch(`${CTVL_URL_IP}/api/api-token-auth/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password }),
@@ -68,7 +68,7 @@ export const logout = async () => {
   const token = cookieStore.get("ctvl_token")?.value;
 
   if (token) {
-    const res = await fetch(`${CTVL_URL}/logout/`, {
+    const res = await fetch(`${CTVL_URL_IP}/logout/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
