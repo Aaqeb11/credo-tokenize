@@ -6,37 +6,21 @@ import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { createUserSchema } from "@/db/schema";
 import { generateAccountNumber } from "@/lib/utils";
-import { currentUser } from "@clerk/nextjs/server";
+import { getToken } from "@/lib/auth";
+import { ZodError } from "zod/v4";
 
 const CTVL_URL = process.env.CTVL_URL;
 const TOKEN_GROUP = process.env.CTVL_TOKEN_GROUP;
 const TOKEN_TEMPLATE = process.env.CTVL_TOKEN_TEMPLATE;
 
-const getCtvlCredentials = async () => {
-  const user = await currentUser();
-
-  if (!user) throw new Error("Unauthorized");
-
-  const { ctvl_user, ctvl_pass } = user.privateMetadata as {
-    ctvl_user: string;
-    ctvl_pass: string;
-  };
-
-  if (!ctvl_user || !ctvl_pass)
-    throw new Error("CTVL credentials not found in user metadata");
-
-  return { ctvlUser: ctvl_user, ctvlPass: ctvl_pass };
-};
-
 const tokenizeCard = async (cardNumber: string) => {
-  const { ctvlUser, ctvlPass } = await getCtvlCredentials();
-
-  const credentials = Buffer.from(`${ctvlUser}:${ctvlPass}`).toString("base64");
+  const token = await getToken();
+  if (!token) throw new Error("Unauthorized");
 
   const res = await fetch(`${CTVL_URL}/tokenize`, {
     method: "POST",
     headers: {
-      Authorization: `Basic ${credentials}`,
+      Authorization: `Token ${token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -52,20 +36,19 @@ const tokenizeCard = async (cardNumber: string) => {
   return data.token;
 };
 
-const detokenizeCard = async (token: string) => {
-  const { ctvlUser, ctvlPass } = await getCtvlCredentials();
-
-  const credentials = Buffer.from(`${ctvlUser}:${ctvlPass}`).toString("base64");
+const detokenizeCard = async (cardToken: string) => {
+  const token = await getToken();
+  if (!token) throw new Error("Unauthorized");
 
   const res = await fetch(`${CTVL_URL}/detokenize`, {
     method: "POST",
     headers: {
-      Authorization: `Basic ${credentials}`,
+      Authorization: `Token ${token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
       tokengroup: TOKEN_GROUP,
-      token,
+      token: cardToken,
       tokentemplate: TOKEN_TEMPLATE,
     }),
   });
@@ -78,6 +61,10 @@ const detokenizeCard = async (token: string) => {
 
 // GET: Fetch by accountNumber
 export async function GET(req: NextRequest) {
+  const token = await getToken();
+  if (!token)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const accountNumber = req.nextUrl.searchParams.get("accountNumber");
 
   const user = await db
@@ -105,6 +92,10 @@ export async function GET(req: NextRequest) {
 
 // POST: Create new user
 export async function POST(req: NextRequest) {
+  const token = await getToken();
+  if (!token)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   console.log("POST /api/users - body received");
   const body = await req.json();
   console.log("Parsed body:", body);
@@ -112,20 +103,46 @@ export async function POST(req: NextRequest) {
   console.log("Validation:", validated);
 
   try {
-    const token = await tokenizeCard(validated.cardNumber);
-    console.log("✅ Token received:", token);
+    const cardToken = await tokenizeCard(validated.cardNumber);
+    console.log("✅ Token received:", cardToken);
 
     const [newUser] = await db
       .insert(users)
       .values({
         ...validated,
-        cardNumber: token,
+        cardNumber: cardToken,
         accountNumber: generateAccountNumber(),
       })
       .returning();
 
     return NextResponse.json({ user: newUser }, { status: 201 });
   } catch (error: any) {
+    if (error instanceof ZodError) {
+      return NextResponse.json({ error: error.message }, { status: 422 });
+    }
+
+    // Postgres unique constraint violation
+    if (error.code === "23505") {
+      if (error.constraint_name === "users_card_number_unique") {
+        return NextResponse.json(
+          { error: "This card number is already registered" },
+          { status: 409 },
+        );
+      }
+      if (error.constraint_name === "users_account_number_unique") {
+        return NextResponse.json(
+          { error: "Account number conflict, please try again" },
+          { status: 409 },
+        );
+      }
+      // Fallback for any other unique constraint
+      return NextResponse.json(
+        { error: "A record with this value already exists" },
+        { status: 409 },
+      );
+    }
+
+    // Tokenization or other known errors
     console.error("❌ POST error:", error.message);
     return NextResponse.json({ error: error.message }, { status: 400 });
   }

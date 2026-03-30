@@ -1,13 +1,20 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextRequest, NextResponse } from "next/server";
 
-const isPublicRoute = createRouteMatcher(["/sign-in(.*)", "/sign-up(.*)"]);
+const isPublicRoute = (req: NextRequest) => {
+  return req.nextUrl.pathname.startsWith("/sign-in");
+};
 
-export default clerkMiddleware(async (auth, req) => {
+export default function middleware(req: NextRequest) {
   if (!isPublicRoute(req)) {
-    await auth.protect();
-  }
-});
+    const token = req.cookies.get("ctvl_token")?.value;
 
+    if (!token) {
+      return NextResponse.redirect(new URL("/sign-in", req.url));
+    }
+  }
+
+  return NextResponse.next();
+}
 export const config = {
   matcher: [
     // Skip Next.js internals and all static files, unless found in search params
