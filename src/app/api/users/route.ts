@@ -20,7 +20,7 @@ const tokenizeCard = async (cardNumber: string) => {
   const res = await fetch(`${CTVL_URL}/tokenize`, {
     method: "POST",
     headers: {
-      Authorization: `Token ${token}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -43,7 +43,7 @@ const detokenizeCard = async (cardToken: string) => {
   const res = await fetch(`${CTVL_URL}/detokenize`, {
     method: "POST",
     headers: {
-      Authorization: `Token ${token}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
