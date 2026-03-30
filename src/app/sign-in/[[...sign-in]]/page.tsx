@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { login } from "@/lib/auth";
+import { loginAction } from "@/lib/actions/auth.actions";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -19,7 +19,7 @@ export default function SignInPage() {
     const password = form.get("password") as string;
 
     try {
-      await login(username, password);
+      await loginAction(username, password);
       router.push("/");
     } catch (err) {
       setError("Invalid username or password");
