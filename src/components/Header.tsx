@@ -1,7 +1,8 @@
 "use client";
+
 import Image from "next/image";
 import Link from "next/link";
-import { Show, SignInButton, UserButton } from "@clerk/nextjs";
+import { logoutAction } from "@/lib/actions/auth.actions";
 
 const Header = () => {
   return (
@@ -18,9 +19,12 @@ const Header = () => {
           </Link>
         </nav>
 
-        <Show when="signed-in">
-          <UserButton />
-        </Show>
+        <button
+          onClick={() => logoutAction()}
+          className="text-sm font-medium text-gray-700 hover:text-black transition-colors duration-200 hover:underline underline-offset-4"
+        >
+          Sign Out
+        </button>
       </div>
     </header>
   );
