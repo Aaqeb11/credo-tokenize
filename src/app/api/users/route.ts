@@ -112,21 +112,14 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ user: newUser }, { status: 201 });
   } catch (error: any) {
-    // Add this first to see the full error
-    console.log("[POST] Full error:", JSON.stringify(error, null, 2));
-    console.log("[POST] Error code:", error.code);
-    console.log("[POST] Error cause:", error.cause);
-    console.log("[POST] Error cause code:", error.cause?.code);
-
     if (error instanceof ZodError) {
       return NextResponse.json({ error: error.message }, { status: 422 });
     }
 
-    // Drizzle wraps the error in error.cause
     const pgError = error.cause ?? error;
 
     if (pgError.code === "23505") {
-      const constraintName = pgError.constraint_name ?? pgError.constraint;
+      const constraintName = pgError.constraint;
       console.log("[POST] Constraint hit:", constraintName);
 
       if (constraintName === "users_card_number_unique") {
