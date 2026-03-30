@@ -112,36 +112,41 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ user: newUser }, { status: 201 });
   } catch (error: any) {
+    // Add this first to see the full error
+    console.log("[POST] Full error:", JSON.stringify(error, null, 2));
+    console.log("[POST] Error code:", error.code);
+    console.log("[POST] Error cause:", error.cause);
+    console.log("[POST] Error cause code:", error.cause?.code);
+
     if (error instanceof ZodError) {
       return NextResponse.json({ error: error.message }, { status: 422 });
     }
 
-    // Postgres unique constraint violation
-    if (error.code === "23505") {
-      if (error.constraint_name === "users_card_number_unique") {
-        console.log("[POST] Error code:", error.code);
-        console.log("[POST] Error constraint:", error.constraint_name);
-        // sometimes it's error.constraint instead of error.constraint_name
-        console.log("[POST] Error constraint (alt):", error.constraint);
+    // Drizzle wraps the error in error.cause
+    const pgError = error.cause ?? error;
+
+    if (pgError.code === "23505") {
+      const constraintName = pgError.constraint_name ?? pgError.constraint;
+      console.log("[POST] Constraint hit:", constraintName);
+
+      if (constraintName === "users_card_number_unique") {
         return NextResponse.json(
           { error: "This card number is already registered" },
           { status: 409 },
         );
       }
-      if (error.constraint_name === "users_account_number_unique") {
+      if (constraintName === "users_account_number_unique") {
         return NextResponse.json(
           { error: "Account number conflict, please try again" },
           { status: 409 },
         );
       }
-      // Fallback for any other unique constraint
       return NextResponse.json(
         { error: "A record with this value already exists" },
         { status: 409 },
       );
     }
 
-    // Tokenization or other known errors
     console.error("❌ POST error:", error.message);
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
