@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { loginAction } from "@/lib/actions/auth.actions";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -22,6 +23,7 @@ export default function SignInPage() {
       await loginAction(username, password);
       router.push("/");
     } catch (err) {
+      if (isRedirectError(err)) return;
       setError("Invalid username or password");
     } finally {
       setLoading(false);
