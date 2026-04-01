@@ -14,7 +14,6 @@ export default function Home() {
             <CardTitle className="text-xl font-semibold text-gray-800">
               CTM Demo
             </CardTitle>
-            <CTMStatus />
           </CardHeader>
           <CardContent className="flex gap-4">
             <Button

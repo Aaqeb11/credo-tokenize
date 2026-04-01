@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { logoutAction } from "@/lib/actions/auth.actions";
+import CTMStatus from "./CTMStatus";
 
 const Header = () => {
   return (
@@ -10,6 +11,7 @@ const Header = () => {
       <Image src="/CREDOLOGO.png" alt="logo" height={100} width={100} />
 
       <div className="flex items-center gap-8">
+        <CTMStatus />
         <nav className="flex gap-6 items-center">
           <Link
             href="/"
