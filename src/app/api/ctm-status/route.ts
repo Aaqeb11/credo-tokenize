@@ -22,6 +22,8 @@ export async function GET() {
       signal: AbortSignal.timeout(5000),
     });
 
+    console.log(res);
+
     if (res.status < 500) {
       return NextResponse.json({ status: "online" });
     }
