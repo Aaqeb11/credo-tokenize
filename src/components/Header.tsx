@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 
 const Header = () => {
   const pathname = usePathname();
+  console.log("the pathname", pathname);
   return (
     <header className="flex flex-row justify-between items-center w-full px-8 py-3 bg-gray-50 border-b border-gray-200 shadow-sm">
       <Image src="/CREDOLOGO.png" alt="logo" height={100} width={100} />
