@@ -25,16 +25,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
-      <Header />
-      <html lang="en">
-        <body
-          className={`${geistSans.variable} ${geistMono.variable} overflow-hidden`}
-        >
-          {children}
-          <Toaster />
-        </body>
-      </html>
-    </>
+    <html lang="en">
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} overflow-hidden`}
+      >
+        <Header />
+        {children}
+        <Toaster />
+      </body>
+    </html>
   );
 }
