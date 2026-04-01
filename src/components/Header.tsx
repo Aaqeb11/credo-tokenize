@@ -14,7 +14,7 @@ const Header = () => {
       <Image src="/CREDOLOGO.png" alt="logo" height={100} width={100} />
 
       <div className="flex items-center gap-8">
-        {pathname === "sign-in" ? null : <CTMStatus />}
+        {!pathname.startsWith("/sign-in") && <CTMStatus />}
         <nav className="flex gap-6 items-center">
           <Link
             href="/"
