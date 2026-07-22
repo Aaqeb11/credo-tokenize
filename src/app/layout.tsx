@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import { Toaster } from "@/components/ui/sonner";
+import PingAuthProvider from "@/providers/ping-auth-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,8 +30,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} overflow-hidden`}
       >
-        <Header />
-        {children}
+        <PingAuthProvider>
+          <Header />
+          {children}
+        </PingAuthProvider>
         <Toaster />
       </body>
     </html>

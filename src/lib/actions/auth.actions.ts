@@ -32,19 +32,44 @@ export const loginAction = async (username: string, password: string) => {
   redirect("/");
 };
 
+export const setAuthSession = async (token: string, user?: any) => {
+  const cookieStore = await cookies();
+  
+  // Set a generic auth token to signify the user is logged in via ForgeRock
+  cookieStore.set("ctvl_token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 60 * 60,
+  });
+
+  if (user) {
+    cookieStore.set("ctvl_user", JSON.stringify(user), {
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60,
+    });
+  }
+};
+
 export const logoutAction = async () => {
   const cookieStore = await cookies();
   const token = cookieStore.get("ctvl_token")?.value;
 
   if (token) {
-    await fetch(`${CTVL_URL_IP}/logout/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Token ${token}`,
-      },
-      body: JSON.stringify({ session_key: token }),
-    });
+    // Attempt CTVL logout (might fail if it's a Ping token, but safe to try)
+    try {
+      await fetch(`${CTVL_URL_IP}/logout/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Token ${token}`,
+        },
+        body: JSON.stringify({ session_key: token }),
+      });
+    } catch (e) {
+      console.warn("CTVL logout failed or was bypassed", e);
+    }
   }
 
   cookieStore.delete("ctvl_token");
