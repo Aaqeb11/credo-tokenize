@@ -1,0 +1,39 @@
+
+version: '1.0'
+
+services:
+  nextjs-app:
+    build:
+      context: .
+      dockerfile: credo-tokenize/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      # These should ideally be read from a .env file or secrets management in production
+      DATABASE_URL: postgresql://user:password@db:5432/credo_tokenize
+      CTVL_USERNAME: root
+      CTVL_PASSWORD: "Credo@123#"
+      CTVL_TOKEN_GROUP: tokenization_group
+      CTVL_TOKEN_TEMPLATE: tokenization_template
+      CTVL_URL: https://172.16.31.103/vts/rest/v2.0
+      NODE_TLS_REJECT_UNAUTHORIZED: 0
+      CTVL_PING_USERNAME: root
+      CTVL_PING_PASSWORD: "Credo@123#"
+    depends_on:
+      - db
+    volumes:
+      - ./credo-tokenize:/app # Mount the app for development, remove or change for production
+      - /app/node_modules # Keep node_modules outside the bind mount
+
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: credo_tokenize
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+volumes:
+  db-data:
