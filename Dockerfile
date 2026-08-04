@@ -4,14 +4,14 @@ FROM oven/bun:1.1.18 as builder
 WORKDIR /app
 
 # Copy package.json and bun.lock to install dependencies
-COPY credo-tokenize/package.json ./package.json
-COPY credo-tokenize/bun.lock ./bun.lock
+COPY package.json ./package.json
+COPY bun.lock ./bun.lock
 
 # Install dependencies
 RUN bun install
 
 # Copy the rest of the application code
-COPY credo-tokenize .
+COPY . .
 
 # Build the Next.js application
 RUN bun run build
