@@ -1,4 +1,4 @@
-FROM oven/bun:1.1.18 AS base
+FROM oven/bun:1.2 AS base
 WORKDIR /app
 
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -13,7 +13,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN bun run build
 
-FROM oven/bun:1.1.18-alpine AS runner
+FROM oven/bun:1.2-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
