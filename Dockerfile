@@ -1,27 +1,36 @@
-# Builder stage
-FROM oven/bun:1.1.18 AS builder
+FROM oven/bun:1.1.18 AS base
 WORKDIR /app
-
-COPY package.json ./package.json
-COPY bun.lock ./bun.lock
-
-RUN bun install
-
-COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
 
+FROM base AS deps
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
+
+FROM base AS builder
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
 RUN bun run build
 
-# Stage 2: Production image
-FROM oven/bun:1.1.18-alpine
+FROM oven/bun:1.1.18-alpine AS runner
 WORKDIR /app
 
-COPY --from=builder /app/.next ./.next
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+
+RUN addgroup --system --gid 1001 nodejs \
+  && adduser --system --uid 1001 nextjs
+
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+
+RUN chown -R nextjs:nodejs /app
+USER nextjs
 
 EXPOSE 3000
 
-CMD ["bun", "run", "start"]
+CMD ["bun", "server.js"]
