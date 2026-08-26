@@ -23,7 +23,7 @@ export async function GET() {
       signal: AbortSignal.timeout(5000),
     });
 
-    if (res.status < 500) {
+    if (res.status === 200 || res.status === 400) {
       return NextResponse.json({ status: "online" });
     }
     return NextResponse.json({ status: "degraded" });

@@ -9,12 +9,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       id: "ping",
       name: "Ping",
       type: "oidc",
-      issuer: "https://id.credots.local/am/oauth2/alpha",
+      issuer: "https://id.credots.local/am/oauth2/realms/root/realms/alpha",
       clientId: process.env.AUTH_CLIENT_ID,
       clientSecret: process.env.AUTH_CLIENT_SECRET,
       authorization: {
         params: {
           scope: "openid ctvl:tokenize",
+          service: "credo-ctvl"
         },
       },
     },
