@@ -8,7 +8,7 @@ import { usePathname } from "next/navigation";
 
 const Header = () => {
   const pathname = usePathname();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
 
   return (
     <header className="flex flex-row justify-between items-center w-full px-8 py-3 bg-gray-50 border-b border-gray-200 shadow-sm">
@@ -31,14 +31,16 @@ const Header = () => {
           </Link>
         </nav>
 
-        {session && (
-          <button
-            onClick={() => signOut()}
-            className="text-sm font-medium text-gray-700 hover:text-black transition-colors duration-200 hover:underline underline-offset-4 hover:cursor-pointer"
-          >
-            Sign Out
-          </button>
-        )}
+        <>
+              {status === "authenticated" && (
+                <button
+                  onClick={() => signOut({ callbackUrl: "/sign-in" })}
+                  className="text-sm font-medium text-gray-700 hover:text-black"
+                >
+                  Sign Out
+                </button>
+              )}
+            </>
       </div>
     </header>
   );
