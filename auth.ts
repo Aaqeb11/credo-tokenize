@@ -8,7 +8,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       id: "ping",
       name: "Ping",
       type: "oidc",
-      issuer: process.env.NEXT_PUBLIC_PING_BASE_URL,
+      issuer: "https://id.credots.local/am/oauth2/alpha",
       clientId: process.env.AUTH_CLIENT_ID,
       clientSecret: process.env.AUTH_CLIENT_SECRET,
       authorization: {
