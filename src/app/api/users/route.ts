@@ -1,5 +1,3 @@
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { users } from "@/db/schema";
@@ -13,49 +11,73 @@ const CTVL_URL = process.env.CTVL_URL;
 const TOKEN_GROUP = process.env.CTVL_TOKEN_GROUP;
 const TOKEN_TEMPLATE = process.env.CTVL_TOKEN_TEMPLATE;
 
-const tokenizeCard = async (cardNumber: string) => {
+/**
+ * Calls the PingGateway-fronted CTVL API.
+ *
+ * The gateway can reject a request before it ever reaches CTVL:
+ *   401 - no token, or signature/scope validation failed
+ *   403 - AM policy denied (empty body)
+ *   404 - no route matched the path
+ * Those responses have no JSON body, so the response must be read as text
+ * and the status checked before parsing.
+ */
+const callCtvl = async (path: string, payload: Record<string, unknown>) => {
   const token = await getToken();
-  if (!token) throw new Error("Unauthorized");
+  if (!token) throw new Error("Unauthorized: no access token in session");
 
-  const res = await fetch(`${CTVL_URL}/tokenize`, {
+  const url = `${CTVL_URL}${path}`;
+  const res = await fetch(url, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      tokengroup: TOKEN_GROUP,
-      data: cardNumber,
-      tokentemplate: TOKEN_TEMPLATE,
-    }),
+    body: JSON.stringify(payload),
   });
 
-  const data = JSON.parse(await res.text());
-  if (data.status !== "Succeed")
-    throw new Error(data.reason || "Tokenization failed");
+  const raw = await res.text();
+
+  if (!res.ok) {
+    console.error(`[ctvl] ${path} -> ${res.status}`, raw || "(empty body)");
+    if (res.status === 401) {
+      throw new Error("Access token rejected by the gateway");
+    }
+    if (res.status === 403) {
+      throw new Error("Not authorized for this operation");
+    }
+    throw new Error(`Gateway returned ${res.status}`);
+  }
+
+  let data: any;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    console.error(`[ctvl] ${path} -> unparseable body`, raw);
+    throw new Error("Malformed response from CTVL");
+  }
+
+  if (data.status !== "Succeed") {
+    throw new Error(data.reason || `CTVL rejected the ${path} request`);
+  }
+
+  return data;
+};
+
+const tokenizeCard = async (cardNumber: string) => {
+  const data = await callCtvl("/tokenize", {
+    tokengroup: TOKEN_GROUP,
+    data: cardNumber,
+    tokentemplate: TOKEN_TEMPLATE,
+  });
   return data.token;
 };
 
 const detokenizeCard = async (cardToken: string) => {
-  const token = await getToken();
-  if (!token) throw new Error("Unauthorized");
-
-  const res = await fetch(`${CTVL_URL}/detokenize`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      tokengroup: TOKEN_GROUP,
-      token: cardToken,
-      tokentemplate: TOKEN_TEMPLATE,
-    }),
+  const data = await callCtvl("/detokenize", {
+    tokengroup: TOKEN_GROUP,
+    token: cardToken,
+    tokentemplate: TOKEN_TEMPLATE,
   });
-
-  const data = JSON.parse(await res.text());
-  if (data.status !== "Succeed")
-    throw new Error(data.reason || "Detokenization failed");
   return data.data;
 };
 
@@ -66,11 +88,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const accountNumber = req.nextUrl.searchParams.get("accountNumber");
+  if (!accountNumber) {
+    return NextResponse.json(
+      { error: "accountNumber is required" },
+      { status: 400 },
+    );
+  }
 
   const user = await db
     .select()
     .from(users)
-    .where(eq(users.accountNumber, accountNumber!))
+    .where(eq(users.accountNumber, accountNumber))
     .limit(1);
 
   if (!user[0]) return NextResponse.json(null);
@@ -83,10 +111,8 @@ export async function GET(req: NextRequest) {
       cardNumber: rawCard,
     });
   } catch (error: any) {
-    return NextResponse.json(
-      { error: "Detokenization failed" },
-      { status: 400 },
-    );
+    console.error("[GET /api/users]", error.message);
+    return NextResponse.json({ error: error.message }, { status: 400 });
   }
 }
 
@@ -95,10 +121,11 @@ export async function POST(req: NextRequest) {
   const token = await getToken();
   if (!token)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const body = await req.json();
-  const validated = createUserSchema.parse(body);
 
   try {
+    const validated = createUserSchema.parse(body);
     const cardToken = await tokenizeCard(validated.cardNumber);
 
     const [newUser] = await db
@@ -140,7 +167,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.error("❌ POST error:", error.message);
+    console.error("[POST /api/users]", error.message);
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 }
