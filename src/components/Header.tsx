@@ -17,9 +17,9 @@ const Header = () => {
       <div className="flex items-center gap-8">
         {!pathname.startsWith("/sign-in") && <CTMStatus />}
 
-        {session?.user?.email && (
+        {session?.user && (
           <span className="text-sm text-gray-600 font-medium">
-            👤 {session.user.email}
+            👤 {session.user.name ?? session.user.email ?? (session.user as any).id ?? "Authenticated"}
           </span>
         )}
         <nav className="flex gap-6 items-center">
