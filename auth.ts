@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
+  secret: process.env.AUTH_SECRET || process.env.BETTER_AUTH_SECRET,
   providers: [
     {
       id: "ping",
